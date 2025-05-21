@@ -137,15 +137,14 @@ def get_user(user_id):
 @auth.login_required
 def update_user(user_id):
     users = load_users()
-    user = users.get(user_id)
-    if not user:
+    # 用户不存在返回404
+    if user_id not in users:
         return jsonify({"message": "No user found"}), 404
-    auth_user = auth.current_user()
-    if auth_user != user_id:
+    # 不是本人，403
+    if user_id != auth.current_user():
         return jsonify({"message": "No permission for update"}), 403
-
     data = request.get_json(force=True, silent=True) or {}
-    # user_id或password字段不可更新
+    # 不允许更新user_id和password
     if "user_id" in data or "password" in data:
         return jsonify({
             "message": "User updation failed",
@@ -153,18 +152,17 @@ def update_user(user_id):
         }), 400
     nickname = data.get("nickname")
     comment = data.get("comment")
-    # 必须有一个字段
     if nickname is None and comment is None:
         return jsonify({
             "message": "User updation failed",
             "cause": "Required nickname or comment"
         }), 400
-    if nickname is not None and not is_valid_nickname(nickname):
+    if nickname is not None and (not isinstance(nickname, str) or len(nickname) > 30 or re.search(r"[\x00-\x1F]", nickname)):
         return jsonify({
             "message": "User updation failed",
             "cause": "Invalid nickname or comment"
         }), 400
-    if comment is not None and not is_valid_comment(comment):
+    if comment is not None and (not isinstance(comment, str) or len(comment) > 100 or re.search(r"[\x00-\x1F]", comment)):
         return jsonify({
             "message": "User updation failed",
             "cause": "Invalid nickname or comment"
@@ -172,24 +170,22 @@ def update_user(user_id):
     # 空字符串处理
     if nickname is not None:
         if nickname == "":
-            user["nickname"] = user_id
+            users[user_id]["nickname"] = user_id
         else:
-            user["nickname"] = nickname
+            users[user_id]["nickname"] = nickname
     if comment is not None:
         if comment == "":
-            user["comment"] = ""
+            users[user_id]["comment"] = ""
         else:
-            user["comment"] = comment
-    users[user_id] = user
+            users[user_id]["comment"] = comment
     save_users(users)
     return jsonify({
         "message": "User successfully updated",
         "user": [{
-            "nickname": user.get("nickname", user_id),
-            "comment": user.get("comment", "")
+            "nickname": users[user_id]["nickname"],
+            "comment": users[user_id]["comment"]
         }]
     }), 200
-
 @app.route("/close", methods=["POST"])
 @auth.login_required
 def close_account():
