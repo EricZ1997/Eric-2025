@@ -106,24 +106,24 @@ def signup():
         }
     }), 200
 
-@app.route("/users/<user_id>", methods=["GET"])
+@app.route('/users/<user_id>', methods=['GET'])
 @auth.login_required
 def get_user(user_id):
     users = load_users()
-    user = users.get(user_id)
-    if not user:
+    # 如果找不到用户，404
+    if user_id not in users:
         return jsonify({"message": "No user found"}), 404
-    auth_user = auth.current_user()
-    # 本人获取所有字段，其他人只能看到nickname
-    if auth_user == user_id:
-        return jsonify({
-            "message": "User details by user_id",
-            "user": {
-                "user_id": user_id,
-                "nickname": user.get("nickname", user_id),
-                "comment": user.get("comment", "")
-            }
-        }), 200
+    # 如果认证通过，返回用户信息
+    user = users[user_id]
+    result = {
+        "message": "User details by user_id",
+        "user": {
+            "user_id": user_id,
+            "nickname": user.get("nickname", user_id),
+            "comment": user.get("comment", "")
+        }
+    }
+    return jsonify(result), 200
     else:
         return jsonify({
             "message": "User details by user_id",
